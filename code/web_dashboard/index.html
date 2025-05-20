@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto watering system</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            font-family: Arial, sans-serif;
+            background-color: #000000;
+            overflow: hidden;
+            font-size: 18pt;
+        }
+
+        #main_grid {
+            display: grid;
+            grid-template-rows: 2fr 1fr;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px;
+            height: 100vh;
+            width: 100vw;
+            grid-template-areas:
+                "gauge info"
+                "controls controls";
+        }
+
+        #gauge {
+            grid-area: gauge;
+            padding: 5%;
+            background-color: #1f1f1f;
+            color: white;
+        }
+
+        p {
+            margin: 10px 0 5px;
+        }
+
+        input {
+            width: 100%;
+            padding: 5px;
+            margin-bottom: 10px;
+            border: none;
+            border-radius: 5px;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background-color: #f0f0f0;
+            color: #0f0f0f;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 18pt;
+        }
+
+        button:hover {
+            background-color: #808080;
+        }
+
+        #info {
+            grid-area: info;
+            padding: 5%;
+            background-color: #1f1f1f;
+            color: white;
+        }
+
+        #controls {
+            grid-area: controls;
+            background-color: #1f1f1f;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 2%;
+            padding: 2%;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="main_grid">
+        <div id="gauge">
+            <p id="humidity">Humшdity: -</p>
+            <p id="mode">Mode: -</p>
+        </div>
+
+        <div id="info">
+            <p>Humidity threshold:</p>
+            <input id="humidity_threshold" type="number" min="1" max="100">
+
+            <p>Watering time:</p>
+            <input id="water_time" type="number" min="1" max="100">
+
+            <p>Wait time:</p>
+            <input id="wait_time" type="number" min="1" max="100">
+
+            <p>Manual watering time:</p>
+            <input id="manual_water_time" type="number" min="1" max="100">
+
+            <br><br>
+            <button style="width: 100%;" onclick="set_parameters()">Set</button>
+        </div>
+
+        <div id="controls">
+            <button onclick="set_mode('off')">Off</button>
+            <button onclick="set_mode('auto')">Auto</button>
+            <button onclick="set_mode('on')">On</button>
+            <button onclick="set_mode('manual')">Manual</button>
+        </div>
+    </div>
+
+    <script>
+        function update_data() {
+            const xhr = new XMLHttpRequest();
+            xhr.open("GET", "info");
+            xhr.onload = function () {
+                if (xhr.status === 200) {
+                    const response = xhr.responseText;
+                    document.getElementById("humidity").innerText = `Humidity: ${100 - Math.round(response.split("\n")[0] / 4095 * 100)}`;
+                    document.getElementById("mode").innerText = `Mode: ${response.split("\n")[2]}`;
+                }
+                else {
+                    console.log("Failed to load data: " + xhr.status);
+                }
+            };
+            xhr.send();
+        }
+
+        setInterval(update_data, 250);
+
+        function set_mode(mode) {
+            const xhr = new XMLHttpRequest();
+            xhr.open("GET", `set_mode/${mode}`);
+            xhr.onload = function () {
+                if (xhr.status === 200) {
+                    const response = xhr.responseText;
+                    console.log(response);
+                }
+                else {
+                    console.log("Failed to load data: " + xhr.status);
+                }
+            };
+            xhr.send();
+        }
+
+        function set_parameters() {
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", "set_parameters");
+            xhr.setRequestHeader("Content-Type", "text/plaintext");
+
+            xhr.onload = function () {
+                if (xhr.status === 200) {
+                    const response = xhr.responseText;
+                    console.log(response);
+                }
+                else {
+                    console.log("Failed to load data: " + xhr.status);
+                }
+            };
+
+            var humidity_threshgold = Math.round(document.getElementById("humidity_threshold").value / 100 * 4095);
+            var water_time = document.getElementById("water_time").value * 1000;
+            var wait_time = document.getElementById("wait_time").value * 1000;
+            var manual_water_time = document.getElementById("manual_water_time").value * 1000;
+
+            xhr.send(`${humidity_threshgold} ${water_time} ${wait_time} ${manual_water_time}`);
+        }
+    </script>
+</body>
+
+</html>
