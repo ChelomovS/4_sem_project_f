@@ -5,20 +5,20 @@
 #include <ESPmDNS.h>
 #include "index.h"
 
-#define LED_PIN 8
+#define LED_PIN 13
 #define SENSOR_PIN 0
-#define PUMP_PIN 21
+#define PUMP_PIN 12
 
 #define PUMP_ON HIGH
 #define PUMP_OFF LOW
 
 uint32_t humidity_threshgold = 2048;
-uint32_t water_time = 5000;
-uint32_t wait_time = 5000;
-uint32_t manual_water_time = 5000;
+uint32_t water_time = 2000;
+uint32_t wait_time = 2000;
+uint32_t manual_water_time = 2000;
 
-const char *ssid = "frkt_botalka";
-const char *password = "FRTKbotalka";
+const char *ssid = "esp32_watering_system";
+const char *password = "87abobusov";
 const char *hostname = "watering_system";
 
 enum STATUSES
@@ -35,12 +35,12 @@ const char *manual_mode_name = "Manual";
 const char *manual_mode_on_name = "Manual ON";
 const char *manual_mode_off_name = "Manual OFF";
 const char *unknown_mode_name = "-";
+const char **mode_name = &auto_mode_name;
+const char **prev_mode_name;
 
 STATUSES status = STATUS_WAITING_HUMIDITY;
 STATUSES prev_status = STATUS_WAITING_HUMIDITY;
 uint32_t timer;
-
-const char *targetIP = "192.168.1.145";
 
 WebServer server(80);
 
@@ -53,27 +53,11 @@ void turn_pump_off()
 void turn_pump_on()
 {
     pinMode(PUMP_PIN, INPUT);
-    status = STATUS_MANUAL_CONTROL;
 }
 
 const char *get_mode_name()
 {
-    switch (status)
-    {
-    case STATUS_WAITING_TIMEOUT:
-    case STATUS_WAITING_HUMIDITY:
-    case STATUS_WATERING:
-        return auto_mode_name;
-    case STATUS_MANUAL_WATERING:
-        return manual_mode_name;
-    case STATUS_MANUAL_CONTROL:
-        if (digitalRead(PUMP_PIN) == PUMP_ON)
-            return manual_mode_on_name;
-        else
-            return manual_mode_off_name;
-    default:
-        return unknown_mode_name;
-    }
+    return *mode_name;
 }
 
 void handle_index()
@@ -84,18 +68,23 @@ void handle_index()
 void handle_on()
 {
     turn_pump_on();
+    status = STATUS_MANUAL_CONTROL;
+    mode_name = &manual_mode_on_name;
     server.send(200, "text/plaintext", "OK");
 }
 
 void handle_auto()
 {
+    turn_pump_off();
     status = STATUS_WAITING_HUMIDITY;
+    mode_name = &auto_mode_name;
     server.send(200, "text/plaintext", "OK");
 }
 
 void handle_off()
 {
     turn_pump_off();
+    mode_name = &manual_mode_off_name;
     status = STATUS_MANUAL_CONTROL;
     server.send(200, "text/plaintext", "OKHYUAFDG");
 }
@@ -103,6 +92,8 @@ void handle_off()
 void handle_manual()
 {
     timer = millis();
+    prev_mode_name = mode_name;
+    mode_name = &manual_mode_name;
     turn_pump_on();
     prev_status = status;
     status = STATUS_MANUAL_WATERING;
@@ -136,14 +127,18 @@ void setup()
     pinMode(LED_PIN, OUTPUT);
     pinMode(PUMP_PIN, OUTPUT);
     digitalWrite(LED_PIN, LOW);
+    Serial.begin(9600);
+    Serial.println("KHKASHD");
 
-    WiFi.mode(WIFI_STA);
-    WiFi.begin(ssid, password);
+    WiFi.softAP(ssid, password);
+    
+    // WiFi.mode(WIFI_STA);
+    // WiFi.begin(ssid, password);
 
-    while (WiFi.status() != WL_CONNECTED)
-    {
-        delay(100);
-    }
+    // while (WiFi.status() != WL_CONNECTED)
+    // {
+    //     delay(100);
+    // }
 
     server.on("/", handle_index);
     server.on("/set_mode/on", handle_on);
@@ -161,6 +156,11 @@ void setup()
 
 void loop()
 {
+    // digitalWrite(LED_PIN, HIGH);
+    // delay(200);
+    // digitalWrite(LED_PIN, LOW);
+    // delay(200);
+    Serial.println("ASDASDASD");
     switch (status)
     {
     case STATUS_WAITING_HUMIDITY:
@@ -190,6 +190,7 @@ void loop()
         if (millis() - timer > manual_water_time)
         {
             status = prev_status;
+            mode_name = prev_mode_name;
             turn_pump_off();
             timer = millis();
         }
